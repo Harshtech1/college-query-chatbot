@@ -27,7 +27,8 @@ def create_app(test_config: dict | None = None) -> Flask:
         app.config.update(test_config)
 
     Path(app.instance_path).mkdir(parents=True, exist_ok=True)
-    Path(app.static_folder).mkdir(parents=True, exist_ok=True)
+    if app.static_folder and not app.config["IS_VERCEL"]:
+        Path(app.static_folder).mkdir(parents=True, exist_ok=True)
     Path(app.config["UPLOAD_DIR"]).mkdir(parents=True, exist_ok=True)
 
     db.init_app(app)
