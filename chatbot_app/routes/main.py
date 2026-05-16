@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, session
 
 from chatbot_app.models import FaqEntry, KnowledgeDocument
 from chatbot_app.services.chat_service import SUGGESTED_PROMPTS, ensure_session_id
-from chatbot_app.services.conversation_service import get_route_guide, get_topic_cards
+from chatbot_app.services.conversation_service import get_route_guide
 
 
 main_bp = Blueprint("main", __name__)
@@ -18,7 +18,6 @@ def index():
         "index.html",
         history=history,
         suggested_prompts=SUGGESTED_PROMPTS,
-        topic_cards=get_topic_cards(),
         route_guide=get_route_guide(),
         verification_status=get_verification_status(),
     )

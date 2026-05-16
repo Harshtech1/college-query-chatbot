@@ -1,14 +1,17 @@
 const historyData = JSON.parse(document.getElementById("chat-history-data").textContent);
+const suggestedPromptsData = JSON.parse(
+  document.getElementById("suggested-prompts-data")?.textContent || "[]",
+);
 const chatFeed = document.getElementById("chat-feed");
 const chatForm = document.getElementById("chat-form");
 const messageInput = document.getElementById("message-input");
 const sendButton = document.getElementById("send-button");
 const suggestionButtons = document.querySelectorAll(".suggestion-chip");
-const voicePanel = document.getElementById("voice-panel");
 const voiceRecordButton = document.getElementById("voice-record-button");
 const voiceRecordLabel = document.getElementById("voice-record-label");
 const voiceCancelButton = document.getElementById("voice-cancel-button");
 const voiceAutoplay = document.getElementById("voice-autoplay");
+const voiceToggleLabel = voiceAutoplay.closest("label");
 const voiceStatus = document.getElementById("voice-status");
 const voiceDisclosure = document.getElementById("voice-disclosure");
 const voiceTranscriptPreview = document.getElementById("voice-transcript-preview");
@@ -18,10 +21,143 @@ const voiceResetButton = document.getElementById("voice-reset-button");
 const voiceReadyPill = document.getElementById("voice-ready-pill");
 
 const routeLabels = {
-  faq_direct: "Direct FAQ",
-  retrieve_docs: "Verified Docs",
-  clarify: "Needs Clarity",
-  fallback: "Not Enough Data",
+  faq_direct: "Official Answer",
+  retrieve_docs: "From University Documents",
+  clarify: "Need One Detail",
+  fallback: "Not Yet Verified",
+};
+
+const quickLinkPrompts = [
+  {
+    label: "Timetables",
+    prompt: "Where is the official exam timetable published?",
+  },
+  {
+    label: "Fee Circulars",
+    prompt: "Where can I find the latest fee circular?",
+  },
+  {
+    label: "PDFs",
+    prompt: "Which official PDF notices are available for students?",
+  },
+];
+
+const departmentDirectory = {
+  admissions: {
+    name: "Admissions Office",
+    email: "admissions@university.edu",
+    summary:
+      "Use this for eligibility, application steps, document verification, or admission confirmation.",
+    notices: [
+      {
+        label: "Admission Checklist PDF",
+        title: "Admissions Checklist",
+        fileName: "admissions-checklist.pdf",
+        lines: [
+          "Required documents should be confirmed against the latest admission notice.",
+          "Keep mark sheets, identity proof, photographs, and category certificates ready where applicable.",
+        ],
+      },
+      {
+        label: "Verification Notice PDF",
+        title: "Admissions Verification Notice",
+        fileName: "admissions-verification-notice.pdf",
+        lines: [
+          "Document verification timelines are issued by the admissions office.",
+          "Students should rely on the latest published notice for submission windows and exceptions.",
+        ],
+      },
+    ],
+  },
+  exams: {
+    name: "Examination Cell",
+    email: "exams@university.edu",
+    summary:
+      "Use this for hall tickets, exam schedules, internal assessment notices, or timetable confirmation.",
+    notices: [
+      {
+        label: "Exam Timetable PDF",
+        title: "Examination Timetable Notice",
+        fileName: "exam-timetable-notice.pdf",
+        lines: [
+          "Timetables should be cross-checked with the latest examination notice.",
+          "Hall-ticket and venue updates are released separately when required.",
+        ],
+      },
+      {
+        label: "Hall Ticket Advisory PDF",
+        title: "Hall Ticket Advisory",
+        fileName: "hall-ticket-advisory.pdf",
+        lines: [
+          "Hall tickets are issued only after fee and attendance compliance is confirmed.",
+          "Students should contact the examination cell for urgent verification requests.",
+        ],
+      },
+    ],
+  },
+  accounts: {
+    name: "Accounts Office",
+    email: "accounts@university.edu",
+    summary:
+      "Use this for fee dues, payment confirmation, refund status, or the latest payable circular.",
+    notices: [
+      {
+        label: "Fee Circular PDF",
+        title: "Fee Circular",
+        fileName: "fee-circular.pdf",
+        lines: [
+          "The payable amount depends on program and semester.",
+          "Students should rely on the latest fee circular before making payment.",
+        ],
+      },
+      {
+        label: "Payment Advisory PDF",
+        title: "Accounts Payment Advisory",
+        fileName: "accounts-payment-advisory.pdf",
+        lines: [
+          "Payment support is available through the accounts office during working hours.",
+          "Students should keep transaction references ready for reconciliation.",
+        ],
+      },
+    ],
+  },
+  attendance: {
+    name: "Attendance Department",
+    email: "attendance@university.edu",
+    summary:
+      "Use this for minimum attendance, shortage review, justification records, or attendance corrections.",
+    notices: [
+      {
+        label: "Attendance Policy PDF",
+        title: "Attendance Policy",
+        fileName: "attendance-policy.pdf",
+        lines: [
+          "Minimum attendance thresholds should be checked against the current academic policy.",
+          "Any shortage review depends on departmental review and approved justifications.",
+        ],
+      },
+      {
+        label: "Shortage Review PDF",
+        title: "Attendance Shortage Review Note",
+        fileName: "attendance-shortage-review.pdf",
+        lines: [
+          "Shortage cases require supporting records and timely department follow-up.",
+          "Students should contact the attendance department for case-specific confirmation.",
+        ],
+      },
+    ],
+  },
+};
+
+const topicEscalationMap = {
+  admissions: ["admissions"],
+  fees: ["accounts"],
+  exams: ["exams"],
+  attendance: ["attendance"],
+  timetable: ["exams"],
+  courses: ["admissions"],
+  faculty: ["exams"],
+  policy: ["admissions", "exams"],
 };
 
 const voiceState = {
@@ -57,7 +193,7 @@ function formatText(value = "") {
 }
 
 function routeLabel(meta = {}) {
-  return routeLabels[meta.route] || (meta.mode === "faq" ? "Direct FAQ" : "Assistant");
+  return routeLabels[meta.route] || (meta.mode === "faq" ? "Official Answer" : "Academic Service Interface");
 }
 
 function confidenceText(confidence) {
@@ -65,6 +201,16 @@ function confidenceText(confidence) {
     return "";
   }
   return `${Math.round(confidence * 100)}% confidence`;
+}
+
+function sourceLabel(source = {}) {
+  if (source.kind === "faq") {
+    return "Official FAQ";
+  }
+  if (source.kind === "document" && source.source_label) {
+    return `University Document ${source.source_label}`;
+  }
+  return source.source_label || "University Source";
 }
 
 function renderSources(sources = []) {
@@ -84,7 +230,7 @@ function renderSources(sources = []) {
           return `
             <article class="source-card">
               <div class="source-card-head">
-                <span class="source-label">${escapeHtml(source.source_label || "Source")}</span>
+                <span class="source-label">${escapeHtml(sourceLabel(source))}</span>
                 ${scoreMarkup}
               </div>
               <strong>${escapeHtml(source.title || "Untitled source")}</strong>
@@ -112,6 +258,107 @@ function renderSuggestedReplies(replies = []) {
         )
         .join("")}
     </div>
+  `;
+}
+
+function renderQuickLinks() {
+  return `
+    <div class="quick-link-row">
+      <span>Quick links</span>
+      <div class="quick-link-pills">
+        ${quickLinkPrompts
+          .map(
+            (item) => `
+              <button class="quick-link-chip" type="button" data-prompt="${escapeHtml(item.prompt)}">${escapeHtml(item.label)}</button>
+            `,
+          )
+          .join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderFeedbackWidget() {
+  return `
+    <div class="feedback-row" data-feedback-state="idle">
+      <span>Was this helpful?</span>
+      <div class="feedback-actions">
+        <button class="feedback-button" type="button" data-feedback="yes">Yes</button>
+        <button class="feedback-button" type="button" data-feedback="no">No</button>
+      </div>
+      <span class="feedback-response" hidden>Thanks for the feedback.</span>
+    </div>
+  `;
+}
+
+function serializeNotice(notice) {
+  return escapeHtml(encodeURIComponent(JSON.stringify(notice)));
+}
+
+function resolveEscalations(meta = {}) {
+  if (!["clarify", "fallback"].includes(meta.route)) {
+    return [];
+  }
+
+  const mappedKeys = topicEscalationMap[meta.topic] || [];
+  if (mappedKeys.length) {
+    return mappedKeys.map((key) => departmentDirectory[key]).filter(Boolean);
+  }
+
+  if (meta.route === "clarify" || meta.route === "fallback") {
+    return Object.values(departmentDirectory);
+  }
+
+  return [];
+}
+
+function renderEscalationCards(meta = {}) {
+  const cards = resolveEscalations(meta);
+  if (!cards.length) {
+    return "";
+  }
+
+  return `
+    <section class="escalation-grid" aria-label="Department escalation options">
+      ${cards
+        .map((card) => {
+          const notices = card.notices
+            .map((notice) => {
+              const noticePayload = {
+                ...notice,
+                department: card.name,
+              };
+              return `
+                <a
+                  class="notice-chip"
+                  href="#"
+                  data-notice="${serializeNotice(noticePayload)}"
+                >${escapeHtml(notice.label)}</a>
+              `;
+            })
+            .join("");
+
+          return `
+            <article class="escalation-card">
+              <div class="escalation-card-head">
+                <span>Department Escalation</span>
+                <strong>${escapeHtml(card.name)}</strong>
+              </div>
+              <p>${escapeHtml(card.summary)}</p>
+              <div class="department-actions">
+                <a
+                  class="contact-link"
+                  href="mailto:${escapeHtml(card.email)}?subject=${encodeURIComponent(`Student Query - ${card.name}`)}"
+                >Contact Department</a>
+              </div>
+              <div class="department-notices">
+                ${notices}
+              </div>
+            </article>
+          `;
+        })
+        .join("")}
+    </section>
   `;
 }
 
@@ -148,12 +395,15 @@ function appendMessage(role, content, meta = {}) {
 
   wrapper.innerHTML = `
     <div class="message-bubble">
-      <span class="message-role">${role === "assistant" ? "Assistant" : "You"}</span>
+      <span class="message-role">${role === "assistant" ? "Academic Service Interface" : "You"}</span>
       ${metaBar}
       <p>${formatText(content)}</p>
       ${role === "assistant" ? renderVoiceAction(role) : ""}
       ${role === "assistant" ? renderSources(meta.sources) : ""}
       ${role === "assistant" ? renderSuggestedReplies(meta.suggested_replies) : ""}
+      ${role === "assistant" ? renderEscalationCards(meta) : ""}
+      ${role === "assistant" ? renderQuickLinks() : ""}
+      ${role === "assistant" ? renderFeedbackWidget() : ""}
     </div>
   `;
 
@@ -168,17 +418,24 @@ function appendMessage(role, content, meta = {}) {
   return wrapper;
 }
 
+function welcomePrompts() {
+  if (suggestedPromptsData.length) {
+    return suggestedPromptsData.slice(0, 2);
+  }
+
+  return [
+    "What is the admission process?",
+    "What is the fee structure?",
+  ];
+}
+
 function hydrateHistory() {
   if (!historyData.length) {
     appendMessage(
       "assistant",
-      "Welcome to the student query desk. Ask a college question and I will answer from approved FAQs or verified documents whenever possible.",
+      "Welcome to the Academic Service Interface. Ask about admissions, fees, examinations, attendance, timetables, or official notices, and I will answer from approved FAQs or university documents whenever possible.",
       {
-        suggested_replies: [
-          "What is the admission process?",
-          "What is the fee structure?",
-          "When are exams conducted?",
-        ],
+        suggested_replies: welcomePrompts(),
         sources: [],
       },
     );
@@ -194,43 +451,41 @@ function setComposerState(isBusy) {
   voiceState.isChatBusy = isBusy;
   messageInput.disabled = isBusy;
   sendButton.disabled = isBusy;
-  sendButton.textContent = isBusy ? "Checking Sources..." : "Send Question";
+  sendButton.textContent = isBusy ? "Verifying..." : "Submit";
   refreshVoiceControls();
 }
 
 function setVoiceStatus(mode, message) {
   voiceState.mode = mode;
-  voicePanel.dataset.voiceState = mode;
   voiceStatus.textContent = message;
   voiceStatus.dataset.state = mode;
 
   if (voiceReadyPill) {
-    voiceReadyPill.hidden = false;
-    const pillLabels = {
-      idle: "Voice ready",
-      recording: "Listening",
-      transcribing: "Transcribing",
-      ready: "Transcript ready",
-      answering: "Answering",
-      speaking: "Speaking",
-      error: "Voice issue",
-      disabled: "Voice unavailable",
-    };
-    voiceReadyPill.textContent = pillLabels[mode] || "Voice ready";
+    if (mode === "disabled" || !voiceState.enabled) {
+      voiceReadyPill.hidden = true;
+    } else {
+      voiceReadyPill.hidden = false;
+      const pillLabels = {
+        idle: "Voice ready",
+        recording: "Listening",
+        transcribing: "Transcribing",
+        ready: "Transcript ready",
+        answering: "Checking answer",
+        speaking: "Voice reply",
+        error: "Voice issue",
+      };
+      voiceReadyPill.textContent = pillLabels[mode] || "Voice ready";
+    }
   }
 
   if (voiceRecordLabel) {
-    voiceRecordLabel.textContent = mode === "recording" ? "Stop Recording" : "Start Voice Question";
+    voiceRecordLabel.textContent = mode === "recording" ? "Stop" : "Voice";
   }
 
   refreshVoiceControls();
 }
 
 function refreshVoiceControls() {
-  if (!voicePanel) {
-    return;
-  }
-
   const interactive = voiceState.enabled && voiceState.browserSupported;
   const isRecording = voiceState.mode === "recording";
   const isWorking = ["transcribing", "answering"].includes(voiceState.mode) || voiceState.isChatBusy;
@@ -241,6 +496,10 @@ function refreshVoiceControls() {
   voiceCancelButton.hidden = !(isRecording || hasPreview);
   voiceCancelButton.disabled = isWorking && !isRecording;
   voiceAutoplay.disabled = !interactive;
+  if (voiceToggleLabel) {
+    voiceToggleLabel.hidden = !voiceState.enabled;
+    voiceToggleLabel.style.display = voiceState.enabled ? "" : "none";
+  }
 }
 
 function resetTranscriptPreview({ preserveInput = false } = {}) {
@@ -268,7 +527,7 @@ function stopActiveAudio({ keepStatus = false } = {}) {
   voiceState.currentAudioButton = null;
 
   if (!keepStatus && voiceState.enabled) {
-    setVoiceStatus("idle", "Voice ready. Record a question or play an answer.");
+    setVoiceStatus("idle", "Voice ready. Record a question or continue typing.");
   }
 }
 
@@ -344,7 +603,7 @@ async function startVoiceRecording() {
 
       if (shouldDiscard) {
         voiceState.discardNextRecording = false;
-        setVoiceStatus("idle", "Voice ready. Record a question or play an answer.");
+        setVoiceStatus("idle", "Voice ready. Record a question or continue typing.");
         return;
       }
 
@@ -355,7 +614,7 @@ async function startVoiceRecording() {
     setVoiceStatus("recording", "Listening... tap again to stop.");
     voiceState.timerId = window.setInterval(updateRecordingTimer, 1000);
   } catch (error) {
-    setVoiceStatus("error", "Microphone access was blocked. Please allow audio recording and try again.");
+    setVoiceStatus("error", "Microphone access was blocked. Please allow recording and try again.");
   }
 }
 
@@ -381,7 +640,7 @@ function cancelVoiceFlow() {
   }
 
   resetTranscriptPreview();
-  setVoiceStatus("idle", "Voice ready. Record a question or play an answer.");
+  setVoiceStatus("idle", "Voice ready. Record a question or continue typing.");
 }
 
 async function transcribeRecordedAudio(blob, mimeType, durationMs) {
@@ -417,15 +676,13 @@ async function transcribeRecordedAudio(blob, mimeType, durationMs) {
 }
 
 async function fetchVoiceConfig() {
-  voicePanel.hidden = false;
-
   if (!voiceState.browserSupported) {
     voiceState.enabled = false;
     voiceState.config = {
       enabled: false,
       autoplay_default: false,
       disclosure: "Spoken replies use an AI-generated voice.",
-      disabled_reason: "This browser does not support microphone capture for the demo.",
+      disabled_reason: "This browser does not support microphone capture for the current session.",
     };
     voiceDisclosure.hidden = false;
     voiceDisclosure.textContent = voiceState.config.disclosure;
@@ -443,7 +700,7 @@ async function fetchVoiceConfig() {
     voiceDisclosure.textContent = payload.disclosure || "";
 
     if (voiceState.enabled) {
-      setVoiceStatus("idle", "Voice ready. Record a question or play an answer.");
+      setVoiceStatus("idle", "Voice ready. Record a question or continue typing.");
     } else {
       setVoiceStatus("disabled", payload.disabled_reason || "Voice mode is not configured yet.");
     }
@@ -476,7 +733,7 @@ async function speakAssistantReply(messageElement, { auto = false } = {}) {
       await voiceState.currentAudio.play();
       button.textContent = "Pause Voice";
       button.dataset.state = "playing";
-      setVoiceStatus("speaking", "Playing the assistant's spoken reply...");
+      setVoiceStatus("speaking", "Playing the spoken reply...");
     } else {
       stopActiveAudio();
     }
@@ -523,7 +780,7 @@ async function speakAssistantReply(messageElement, { auto = false } = {}) {
     button.textContent = "Pause Voice";
     button.dataset.state = "playing";
     button.disabled = false;
-    setVoiceStatus("speaking", auto ? "Playing the assistant's spoken reply..." : "Speaking the selected answer...");
+    setVoiceStatus("speaking", auto ? "Playing the spoken reply..." : "Speaking the selected answer...");
 
     audio.addEventListener(
       "ended",
@@ -557,7 +814,7 @@ async function submitPrompt(message, options = {}) {
   setComposerState(true);
 
   if (options.origin === "voice") {
-    setVoiceStatus("answering", "Sending your transcript through the grounded chat engine...");
+    setVoiceStatus("answering", "Checking approved FAQs and official documents...");
     voiceTranscriptPreview.hidden = true;
   }
 
@@ -565,11 +822,11 @@ async function submitPrompt(message, options = {}) {
   typing.className = "message message-assistant";
   typing.innerHTML = `
     <div class="message-bubble typing-bubble">
-      <span class="message-role">Assistant</span>
+      <span class="message-role">Academic Service Interface</span>
       <div class="message-meta">
-        <span class="route-chip route-retrieve_docs">Checking Context</span>
+        <span class="route-chip route-retrieve_docs">Reviewing Records</span>
       </div>
-      <p>Reviewing the best verified answer for your question.</p>
+      <p>Checking approved FAQs and official documents for the most reliable answer.</p>
     </div>
   `;
   chatFeed.appendChild(typing);
@@ -585,13 +842,17 @@ async function submitPrompt(message, options = {}) {
     typing.remove();
 
     if (!response.ok) {
-      appendMessage("assistant", payload.error || "Something went wrong while answering your question.", {
-        mode: "rag",
-        route: "fallback",
-        confidence: 0,
-        sources: [],
-        suggested_replies: [],
-      });
+      appendMessage(
+        "assistant",
+        payload.error || "I could not verify that request just now. Please try again in a moment.",
+        {
+          mode: "rag",
+          route: "fallback",
+          confidence: 0,
+          sources: [],
+          suggested_replies: welcomePrompts(),
+        },
+      );
       if (options.origin === "voice") {
         setVoiceStatus("error", payload.error || "The question could not be answered.");
       }
@@ -618,13 +879,17 @@ async function submitPrompt(message, options = {}) {
     }
   } catch (error) {
     typing.remove();
-    appendMessage("assistant", "I could not reach the server just now. Please try again.", {
-      mode: "rag",
-      route: "fallback",
-      confidence: 0,
-      sources: [],
-      suggested_replies: [],
-    });
+    appendMessage(
+      "assistant",
+      "I could not reach the service just now. Please try again, or contact the relevant department if the matter is urgent.",
+      {
+        mode: "rag",
+        route: "fallback",
+        confidence: 0,
+        sources: [],
+        suggested_replies: welcomePrompts(),
+      },
+    );
 
     if (options.origin === "voice") {
       setVoiceStatus("error", "The voice request reached the browser, but the server could not be reached.");
@@ -646,6 +911,95 @@ async function submitVoiceTranscript() {
   resetTranscriptPreview({ preserveInput: true });
 }
 
+function handleFeedbackSelection(button) {
+  const row = button.closest(".feedback-row");
+  if (!row) {
+    return;
+  }
+
+  const selected = button.dataset.feedback || "";
+  const buttons = row.querySelectorAll(".feedback-button");
+  const response = row.querySelector(".feedback-response");
+
+  buttons.forEach((item) => {
+    item.dataset.state = item === button ? "selected" : "idle";
+    item.disabled = true;
+  });
+
+  row.dataset.feedbackState = selected;
+  if (response) {
+    response.hidden = false;
+    response.textContent =
+      selected === "yes"
+        ? "Thanks. We will keep this answer style."
+        : "Thanks. We will use that to improve future replies.";
+  }
+}
+
+function escapePdfText(value = "") {
+  return String(value)
+    .replaceAll("\\", "\\\\")
+    .replaceAll("(", "\\(")
+    .replaceAll(")", "\\)");
+}
+
+function buildNoticePdf(notice) {
+  const lines = [
+    notice.title || "Official Notice",
+    `Department: ${notice.department || "University Office"}`,
+    "",
+    ...(notice.lines || []),
+  ];
+
+  const streamLines = ["BT", "/F1 18 Tf", "72 750 Td"];
+  lines.forEach((line, index) => {
+    if (index > 0) {
+      streamLines.push("0 -24 Td");
+    }
+    streamLines.push(`(${escapePdfText(line)}) Tj`);
+  });
+  streamLines.push("ET");
+
+  const stream = streamLines.join("\n");
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Count 1 /Kids [3 0 R] >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+  ];
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+
+  objects.forEach((body, index) => {
+    offsets[index + 1] = pdf.length;
+    pdf += `${index + 1} 0 obj\n${body}\nendobj\n`;
+  });
+
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += "0000000000 65535 f \n";
+  for (let index = 1; index <= objects.length; index += 1) {
+    pdf += `${String(offsets[index]).padStart(10, "0")} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  return new Blob([pdf], { type: "application/pdf" });
+}
+
+function downloadNoticePdf(notice) {
+  const blob = buildNoticePdf(notice);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = notice.fileName || "official-notice.pdf";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 chatForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const message = messageInput.value.trim();
@@ -664,11 +1018,27 @@ suggestionButtons.forEach((button) => {
 });
 
 chatFeed.addEventListener("click", async (event) => {
-  const followUpButton = event.target.closest(".follow-up-chip");
+  const followUpButton = event.target.closest(".follow-up-chip, .quick-link-chip");
   if (followUpButton) {
     const prompt = followUpButton.dataset.prompt || "";
     if (prompt) {
       await submitPrompt(prompt);
+    }
+    return;
+  }
+
+  const feedbackButton = event.target.closest(".feedback-button");
+  if (feedbackButton) {
+    handleFeedbackSelection(feedbackButton);
+    return;
+  }
+
+  const noticeButton = event.target.closest(".notice-chip");
+  if (noticeButton) {
+    event.preventDefault();
+    const rawNotice = noticeButton.dataset.notice || "";
+    if (rawNotice) {
+      downloadNoticePdf(JSON.parse(decodeURIComponent(rawNotice)));
     }
     return;
   }
@@ -699,7 +1069,7 @@ voiceSubmitButton.addEventListener("click", async () => {
 
 voiceResetButton.addEventListener("click", () => {
   resetTranscriptPreview();
-  setVoiceStatus("idle", "Voice ready. Record a question or play an answer.");
+  setVoiceStatus("idle", "Voice ready. Record a question or continue typing.");
 });
 
 async function bootstrap() {
