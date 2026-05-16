@@ -17,7 +17,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         __name__,
         template_folder=str(root_dir / "templates"),
         static_folder=str(public_dir),
-        static_url_path="/static",
+        static_url_path="",
         instance_path=str(Config.INSTANCE_DIR),
         instance_relative_config=False,
     )
