@@ -23,6 +23,9 @@ def build_bootstrap_error_app(exc: Exception) -> Flask:
     return fallback
 
 
+app = build_bootstrap_error_app(RuntimeError("Application bootstrap has not completed yet."))
+
+
 try:
     app = create_app()
 except Exception as exc:  # pragma: no cover - only exercised when app bootstrap fails
