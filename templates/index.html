@@ -1,91 +1,94 @@
 {% extends "base.html" %}
 {% set title = "Academic Service Interface" %}
+{% block body_class %}chat-app-body{% endblock %}
 {% block content %}
-<section class="trust-banner" aria-labelledby="service-heading">
-    <div class="trust-copy">
-        <p class="eyebrow">Official Academic Service Interface</p>
-        <h1 id="service-heading">{{ service_name }}</h1>
-        <p class="hero-text">
-            Ask concise questions about admissions, fees, examinations, attendance, timetables, or official notices.
-            Responses stay grounded in approved FAQs and university documents.
-        </p>
-    </div>
-    <aside class="trust-aside" aria-label="Institutional ownership">
-        <p class="panel-label">Service Ownership</p>
-        <p class="trust-aside-title">{{ institution_office }}</p>
-        <p class="trust-aside-copy">Public student support channel for authoritative academic information.</p>
-    </aside>
-</section>
-
-<section class="chat-stage chat-stage-service">
-    <div class="chat-panel chat-panel-service">
-        <div class="panel-head service-panel-head">
-            <div class="service-panel-copy">
-                <p class="panel-label">How Answers Work</p>
-                <div class="service-metadata-row" role="list" aria-label="Answer routing guide">
-                    {% for route in route_guide %}
-                        <article class="service-metadata-item" role="listitem">
-                            <strong>{{ route.label }}</strong>
-                            <span>{{ route.detail }}</span>
-                        </article>
-                    {% endfor %}
-                </div>
-            </div>
-            <div class="status-cluster">
-                <span class="status-pill">Live</span>
-                <span class="status-note">System verified: {{ verification_status }}</span>
-                {% if demo_mode %}
-                    <span class="status-note">Hosted preview mode</span>
-                {% endif %}
-                <span id="voice-ready-pill" class="status-note" hidden>Voice loading</span>
-            </div>
+<section class="chat-app-shell">
+    <section class="trust-banner" aria-labelledby="service-heading">
+        <div class="trust-copy">
+            <p class="eyebrow">Official Academic Service Interface</p>
+            <h1 id="service-heading">{{ service_name }}</h1>
+            <p class="hero-text">
+                Ask concise questions about admissions, fees, examinations, attendance, timetables, or official notices.
+                Responses stay grounded in approved FAQs and university documents.
+            </p>
         </div>
+        <aside class="trust-aside" aria-label="Institutional ownership">
+            <p class="panel-label">Service Ownership</p>
+            <p class="trust-aside-title">{{ institution_office }}</p>
+            <p class="trust-aside-copy">Public student support channel for authoritative academic information.</p>
+        </aside>
+    </section>
 
-        <div id="chat-feed" class="chat-feed" aria-live="polite"></div>
-
-        <form id="chat-form" class="chat-form">
-            <label class="sr-only" for="message-input">Ask your question</label>
-            <div class="composer-shell">
-                <div class="composer-input-row">
-                    <textarea
-                        id="message-input"
-                        name="message"
-                        rows="2"
-                        placeholder="Ask about admissions, fees, examinations, attendance, timetables, or official notices..."
-                        required
-                    ></textarea>
-                    <div class="composer-actions">
-                        <button id="voice-record-button" class="ghost-button voice-record-button voice-inline-button" type="button">
-                            <span class="voice-record-dot" aria-hidden="true"></span>
-                            <span id="voice-record-label">Voice</span>
-                        </button>
-                        <button id="voice-cancel-button" class="ghost-button small-button" type="button" hidden>Clear</button>
-                        <button id="send-button" class="primary-button" type="submit">Submit</button>
+    <section class="chat-stage chat-stage-service">
+        <div class="chat-panel chat-panel-service">
+            <div class="panel-head service-panel-head">
+                <div class="service-panel-copy">
+                    <p class="panel-label">How Answers Work</p>
+                    <div class="service-metadata-row" role="list" aria-label="Answer routing guide">
+                        {% for route in route_guide %}
+                            <article class="service-metadata-item" role="listitem">
+                                <strong>{{ route.label }}</strong>
+                                <span>{{ route.detail }}</span>
+                            </article>
+                        {% endfor %}
                     </div>
                 </div>
-                <div class="composer-inline-row">
-                    <p id="voice-status" class="voice-status" aria-live="polite">Voice loading...</p>
-                    <label class="voice-toggle voice-toggle-inline" for="voice-autoplay">
-                        <input id="voice-autoplay" type="checkbox">
-                        <span>Auto-play voice reply</span>
-                    </label>
+                <div class="status-cluster">
+                    <span class="status-pill">Live</span>
+                    <span class="status-note">System verified: {{ verification_status }}</span>
+                    {% if demo_mode %}
+                        <span class="status-note">Hosted preview mode</span>
+                    {% endif %}
+                    <span id="voice-ready-pill" class="status-note" hidden>Voice loading</span>
                 </div>
-                <div id="voice-transcript-preview" class="voice-transcript-preview voice-transcript-inline" hidden>
-                    <span class="voice-preview-label">Transcript Ready</span>
-                    <p id="voice-transcript-text"></p>
-                    <div class="voice-preview-actions">
-                        <button id="voice-submit-button" class="ghost-button small-button" type="button">Send Transcript</button>
-                        <button id="voice-reset-button" class="ghost-button small-button" type="button">Record Again</button>
-                    </div>
-                </div>
-                <p id="voice-disclosure" class="voice-disclosure composer-privacy-note" hidden></p>
-                <p class="composer-privacy-note">
-                    Privacy note: Messages stay within official student-service workflows. Voice clips are processed only to
-                    transcribe your request or play back the answer.
-                </p>
             </div>
-        </form>
-    </div>
+
+            <div id="chat-feed" class="chat-feed chat-history" aria-live="polite" aria-label="Conversation history"></div>
+
+            <form id="chat-form" class="chat-form">
+                <label class="sr-only" for="message-input">Ask your question</label>
+                <div class="composer-shell">
+                    <div class="composer-input-row">
+                        <textarea
+                            id="message-input"
+                            name="message"
+                            rows="2"
+                            placeholder="Ask about admissions, fees, examinations, attendance, timetables, or official notices..."
+                            required
+                        ></textarea>
+                        <div class="composer-actions">
+                            <button id="voice-record-button" class="ghost-button voice-record-button voice-inline-button" type="button">
+                                <span class="voice-record-dot" aria-hidden="true"></span>
+                                <span id="voice-record-label">Voice</span>
+                            </button>
+                            <button id="voice-cancel-button" class="ghost-button small-button" type="button" hidden>Clear</button>
+                            <button id="send-button" class="primary-button" type="submit">Submit</button>
+                        </div>
+                    </div>
+                    <div class="composer-inline-row">
+                        <p id="voice-status" class="voice-status" aria-live="polite">Voice loading...</p>
+                        <label class="voice-toggle voice-toggle-inline" for="voice-autoplay">
+                            <input id="voice-autoplay" type="checkbox">
+                            <span>Auto-play voice reply</span>
+                        </label>
+                    </div>
+                    <div id="voice-transcript-preview" class="voice-transcript-preview voice-transcript-inline" hidden>
+                        <span class="voice-preview-label">Transcript Ready</span>
+                        <p id="voice-transcript-text"></p>
+                        <div class="voice-preview-actions">
+                            <button id="voice-submit-button" class="ghost-button small-button" type="button">Send Transcript</button>
+                            <button id="voice-reset-button" class="ghost-button small-button" type="button">Record Again</button>
+                        </div>
+                    </div>
+                    <p id="voice-disclosure" class="voice-disclosure composer-privacy-note" hidden></p>
+                    <p class="composer-privacy-note">
+                        Privacy note: Messages stay within official student-service workflows. Voice clips are processed only to
+                        transcribe your request or play back the answer.
+                    </p>
+                </div>
+            </form>
+        </div>
+    </section>
 </section>
 
 <script id="chat-history-data" type="application/json">{{ history | tojson }}</script>

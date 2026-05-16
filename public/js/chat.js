@@ -179,6 +179,19 @@ const voiceState = {
   currentAudioButton: null,
 };
 
+function scrollToBottom(behavior = "smooth") {
+  if (!chatFeed) {
+    return;
+  }
+
+  window.requestAnimationFrame(() => {
+    chatFeed.scrollTo({
+      top: chatFeed.scrollHeight,
+      behavior,
+    });
+  });
+}
+
 function escapeHtml(value = "") {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -312,52 +325,123 @@ function resolveEscalations(meta = {}) {
   return [];
 }
 
-function renderEscalationCards(meta = {}) {
+function flattenEscalationNotices(cards = []) {
+  const noticeMap = new Map();
+
+  cards.forEach((card) => {
+    (card.notices || []).forEach((notice) => {
+      const payload = {
+        ...notice,
+        department: card.name,
+      };
+      const noticeKey = notice.fileName || `${card.name}:${notice.label}`;
+      if (!noticeMap.has(noticeKey)) {
+        noticeMap.set(noticeKey, payload);
+      }
+    });
+  });
+
+  return Array.from(noticeMap.values());
+}
+
+function renderDepartmentActionMenu(cards = []) {
+  if (!cards.length) {
+    return "";
+  }
+
+  return `
+    <details class="action-menu" aria-label="Department escalation options">
+      <summary class="action-menu-summary">
+        <span class="action-menu-title-wrap">
+          <span class="action-menu-title">Department Escalations</span>
+          <span class="action-menu-label">Open the right office when the issue needs case-specific review.</span>
+        </span>
+        <span class="action-menu-summary-side">
+          <span class="action-menu-badge">${cards.length} ${cards.length === 1 ? "office" : "offices"}</span>
+          <span class="action-menu-chevron" aria-hidden="true">&#9662;</span>
+        </span>
+      </summary>
+      <div class="action-menu-panel">
+        <div class="action-list">
+          ${cards
+            .map(
+              (card) => `
+                <article class="action-item">
+                  <div class="action-item-head">
+                    <div class="action-item-copy">
+                      <span class="action-item-kicker">Department support</span>
+                      <strong>${escapeHtml(card.name)}</strong>
+                    </div>
+                    <div class="department-actions">
+                      <a
+                        class="contact-link"
+                        href="mailto:${escapeHtml(card.email)}?subject=${encodeURIComponent(`Student Query - ${card.name}`)}"
+                      >Contact Department</a>
+                    </div>
+                  </div>
+                  <p>${escapeHtml(card.summary)}</p>
+                </article>
+              `,
+            )
+            .join("")}
+        </div>
+      </div>
+    </details>
+  `;
+}
+
+function renderDocumentActionMenu(cards = []) {
+  const notices = flattenEscalationNotices(cards);
+  if (!notices.length) {
+    return "";
+  }
+
+  return `
+    <details class="action-menu" aria-label="Official document downloads">
+      <summary class="action-menu-summary">
+        <span class="action-menu-title-wrap">
+          <span class="action-menu-title">View Required Documents</span>
+          <span class="action-menu-label">Official PDFs and notice extracts related to this topic.</span>
+        </span>
+        <span class="action-menu-summary-side">
+          <span class="action-menu-badge">${notices.length} ${notices.length === 1 ? "file" : "files"}</span>
+          <span class="action-menu-chevron" aria-hidden="true">&#9662;</span>
+        </span>
+      </summary>
+      <div class="action-menu-panel">
+        <div class="action-link-list">
+          ${notices
+            .map(
+              (notice) => `
+                <button
+                  class="action-download-button action-link-row"
+                  type="button"
+                  data-notice="${serializeNotice(notice)}"
+                >
+                  <span class="action-link-copy">
+                    <strong>${escapeHtml(notice.label)}</strong>
+                    <span>${escapeHtml(notice.department || "University Office")}</span>
+                  </span>
+                </button>
+              `,
+            )
+            .join("")}
+        </div>
+      </div>
+    </details>
+  `;
+}
+
+function renderActionMenus(meta = {}) {
   const cards = resolveEscalations(meta);
   if (!cards.length) {
     return "";
   }
 
   return `
-    <section class="escalation-grid" aria-label="Department escalation options">
-      ${cards
-        .map((card) => {
-          const notices = card.notices
-            .map((notice) => {
-              const noticePayload = {
-                ...notice,
-                department: card.name,
-              };
-              return `
-                <a
-                  class="notice-chip"
-                  href="#"
-                  data-notice="${serializeNotice(noticePayload)}"
-                >${escapeHtml(notice.label)}</a>
-              `;
-            })
-            .join("");
-
-          return `
-            <article class="escalation-card">
-              <div class="escalation-card-head">
-                <span>Department Escalation</span>
-                <strong>${escapeHtml(card.name)}</strong>
-              </div>
-              <p>${escapeHtml(card.summary)}</p>
-              <div class="department-actions">
-                <a
-                  class="contact-link"
-                  href="mailto:${escapeHtml(card.email)}?subject=${encodeURIComponent(`Student Query - ${card.name}`)}"
-                >Contact Department</a>
-              </div>
-              <div class="department-notices">
-                ${notices}
-              </div>
-            </article>
-          `;
-        })
-        .join("")}
+    <section class="action-menu-stack" aria-label="Follow-up actions">
+      ${renderDepartmentActionMenu(cards)}
+      ${renderDocumentActionMenu(cards)}
     </section>
   `;
 }
@@ -374,7 +458,8 @@ function renderVoiceAction(role) {
   `;
 }
 
-function appendMessage(role, content, meta = {}) {
+function appendMessage(role, content, meta = {}, options = {}) {
+  const { scrollBehavior = "smooth" } = options;
   const wrapper = document.createElement("article");
   wrapper.className = `message message-${role}`;
 
@@ -401,7 +486,7 @@ function appendMessage(role, content, meta = {}) {
       ${role === "assistant" ? renderVoiceAction(role) : ""}
       ${role === "assistant" ? renderSources(meta.sources) : ""}
       ${role === "assistant" ? renderSuggestedReplies(meta.suggested_replies) : ""}
-      ${role === "assistant" ? renderEscalationCards(meta) : ""}
+      ${role === "assistant" ? renderActionMenus(meta) : ""}
       ${role === "assistant" ? renderQuickLinks() : ""}
       ${role === "assistant" ? renderFeedbackWidget() : ""}
     </div>
@@ -414,7 +499,7 @@ function appendMessage(role, content, meta = {}) {
   }
 
   chatFeed.appendChild(wrapper);
-  chatFeed.scrollTop = chatFeed.scrollHeight;
+  scrollToBottom(scrollBehavior);
   return wrapper;
 }
 
@@ -438,13 +523,16 @@ function hydrateHistory() {
         suggested_replies: welcomePrompts(),
         sources: [],
       },
+      { scrollBehavior: "auto" },
     );
     return;
   }
 
   historyData.forEach((item) => {
-    appendMessage(item.role, item.content, item);
+    appendMessage(item.role, item.content, item, { scrollBehavior: "auto" });
   });
+
+  scrollToBottom("auto");
 }
 
 function setComposerState(isBusy) {
@@ -830,7 +918,7 @@ async function submitPrompt(message, options = {}) {
     </div>
   `;
   chatFeed.appendChild(typing);
-  chatFeed.scrollTop = chatFeed.scrollHeight;
+  scrollToBottom();
 
   try {
     const response = await fetch("/api/chat", {
@@ -1033,9 +1121,8 @@ chatFeed.addEventListener("click", async (event) => {
     return;
   }
 
-  const noticeButton = event.target.closest(".notice-chip");
+  const noticeButton = event.target.closest(".action-download-button");
   if (noticeButton) {
-    event.preventDefault();
     const rawNotice = noticeButton.dataset.notice || "";
     if (rawNotice) {
       downloadNoticePdf(JSON.parse(decodeURIComponent(rawNotice)));
