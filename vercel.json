@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "app.py": {
+      "excludeFiles": "{tests/**,.venv/**,.pytest_cache/**,instance/**,__pycache__/**,browser_upload_test.txt,Chatbot_for_College_Queries_Report.md,server*.log}"
+    }
+  }
+}

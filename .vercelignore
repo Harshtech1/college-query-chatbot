@@ -1,0 +1,10 @@
+.venv
+.pytest_cache
+__pycache__
+instance
+tests
+browser_upload_test.txt
+Chatbot_for_College_Queries_Report.md
+server*.log
+server*.out.log
+server*.err.log

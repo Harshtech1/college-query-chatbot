@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+instance/
+uploads/
+.pytest_cache/
+.env
+.vercel/
+server*.log
+server*.out.log
+server*.err.log
+browser_upload_test.txt

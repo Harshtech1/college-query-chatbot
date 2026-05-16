@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% set title = "Admin Dashboard" %}
+{% block content %}
+<section class="dashboard-header">
+    <div>
+        <p class="eyebrow">Operations Console</p>
+        <h1>Knowledge Base Admin</h1>
+        <p class="hero-text">Upload college documents, refine curated FAQs, and monitor recent student conversations.</p>
+    </div>
+    <div class="stat-grid">
+        <article class="stat-card"><strong>{{ stats.faq_count }}</strong><span>FAQs</span></article>
+        <article class="stat-card"><strong>{{ stats.document_count }}</strong><span>Documents</span></article>
+        <article class="stat-card"><strong>{{ stats.processed_count }}</strong><span>Processed</span></article>
+        <article class="stat-card"><strong>{{ stats.log_count }}</strong><span>Chats Logged</span></article>
+    </div>
+</section>
+
+<section class="dashboard-grid">
+    <div class="admin-card">
+        <div class="panel-head">
+            <div>
+                <p class="panel-label">Source Import</p>
+                <h2>Upload Knowledge Documents</h2>
+            </div>
+        </div>
+        <form id="document-upload-form" class="stack-form" enctype="multipart/form-data">
+            <label>
+                <span>Choose file</span>
+                <input type="file" name="file" accept=".pdf,.docx,.txt" required>
+            </label>
+            <button class="primary-button" type="submit">Upload and Ingest</button>
+        </form>
+        <p id="upload-status" class="inline-note">Supported formats: PDF, DOCX, TXT.</p>
+    </div>
+
+    <div class="admin-card">
+        <div class="panel-head">
+            <div>
+                <p class="panel-label">FAQ Editor</p>
+                <h2>Curated Answers</h2>
+            </div>
+        </div>
+        <form id="faq-form" class="stack-form">
+            <input type="hidden" name="faq_id" id="faq-id">
+            <label>
+                <span>Question</span>
+                <input type="text" name="question" id="faq-question" required>
+            </label>
+            <label>
+                <span>Answer</span>
+                <textarea name="answer" id="faq-answer" rows="4" required></textarea>
+            </label>
+            <div class="two-col">
+                <label>
+                    <span>Category</span>
+                    <input type="text" name="category" id="faq-category" value="General">
+                </label>
+                <label>
+                    <span>Priority</span>
+                    <input type="number" name="priority" id="faq-priority" value="1" min="1" max="10">
+                </label>
+            </div>
+            <label>
+                <span>Keywords</span>
+                <input type="text" name="keywords" id="faq-keywords" placeholder="admission, application, documents">
+            </label>
+            <label class="checkbox-row">
+                <input type="checkbox" name="is_active" id="faq-active" checked>
+                <span>Active and available to students</span>
+            </label>
+            <div class="button-row">
+                <button class="primary-button" type="submit">Save FAQ</button>
+                <button class="ghost-button" type="button" id="faq-reset">Reset</button>
+            </div>
+        </form>
+    </div>
+    
+    <div class="admin-card wide-card">
+        <div class="panel-head">
+            <div>
+                <p class="panel-label">Current FAQs</p>
+                <h2>Knowledge Shortcuts</h2>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Question</th>
+                        <th>Category</th>
+                        <th>Keywords</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for faq in faqs %}
+                    <tr>
+                        <td>{{ faq.question }}</td>
+                        <td>{{ faq.category }}</td>
+                        <td>{{ ", ".join(faq.keywords or []) }}</td>
+                        <td>{{ "Active" if faq.is_active else "Inactive" }}</td>
+                        <td class="action-cell">
+                            <button class="ghost-button small-button edit-faq" type="button" data-faq-id="{{ faq.id }}">Edit</button>
+                            <button class="ghost-button small-button delete-faq" type="button" data-faq-id="{{ faq.id }}">Delete</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="admin-card">
+        <div class="panel-head">
+            <div>
+                <p class="panel-label">Imports</p>
+                <h2>Recent Documents</h2>
+            </div>
+        </div>
+        <div class="table-wrap compact-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Status</th>
+                        <th>Chunks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for document in documents %}
+                    <tr>
+                        <td>{{ document.title }}</td>
+                        <td>{{ document.status }}</td>
+                        <td>{{ document.chunk_count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="admin-card">
+        <div class="panel-head">
+            <div>
+                <p class="panel-label">Monitoring</p>
+                <h2>Recent Chat Logs</h2>
+            </div>
+        </div>
+        <div class="log-stack">
+            {% for log in logs %}
+            <article class="log-item">
+                <strong>{{ log.user_message }}</strong>
+                <p>{{ log.assistant_message }}</p>
+                <small>{{ log.answer_mode }} | {{ log.created_at.strftime("%Y-%m-%d %H:%M") }}</small>
+            </article>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<script id="faq-data" type="application/json">{{ faqs_json | tojson }}</script>
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% endblock %}
+

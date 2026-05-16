@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% set title = "Admin Unavailable" %}
+{% block content %}
+<section class="auth-shell">
+    <article class="auth-card">
+        <p class="panel-label">Hosted Demo Preview</p>
+        <h1>Admin tools stay local in this preview.</h1>
+        <p class="hero-text">
+            This Vercel preview is designed for public student-chat evaluation. FAQ editing, document uploads, and admin analytics
+            remain available in local development so the hosted demo does not imply persistent storage.
+        </p>
+        <div class="button-row">
+            <a class="primary-button" href="{{ url_for('main.index') }}">Return to Student Chat</a>
+        </div>
+    </article>
+</section>
+{% endblock %}

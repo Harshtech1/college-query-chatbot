@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title or app_name }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="page-shell">
+        <header class="topbar">
+            <a class="brand" href="{{ url_for('main.index') }}">
+                <span class="brand-mark" aria-hidden="true">UN</span>
+                <span class="brand-copy">
+                    <small class="brand-kicker">{{ service_name }}</small>
+                    <strong>{{ institution_name }}</strong>
+                    <span class="brand-meta">{{ institution_office }}</span>
+                </span>
+            </a>
+            <nav class="topbar-actions" aria-label="Public navigation">
+                <a class="ghost-link" href="{{ url_for('main.index') }}">Student Query Desk</a>
+                {% if admin_enabled %}
+                    {% if session.get("admin_user_id") %}
+                        <span class="status-note">Admin session active</span>
+                    {% endif %}
+                {% elif demo_mode %}
+                    <span class="status-note">Hosted preview</span>
+                {% endif %}
+            </nav>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <section class="flash-stack">
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </section>
+            {% endif %}
+        {% endwith %}
+
+        <main>
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer class="site-footer">
+            <p class="site-footer-copy">Public-facing academic service interface for verified student support information.</p>
+            <div class="site-footer-actions">
+                {% if admin_enabled %}
+                    {% if session.get("admin_user_id") %}
+                        <a class="footer-link" href="{{ url_for('admin.dashboard') }}">Admin Dashboard</a>
+                        <form method="post" action="{{ url_for('admin.logout') }}">
+                            <button class="footer-button" type="submit">Logout</button>
+                        </form>
+                    {% else %}
+                        <a class="footer-link" href="{{ url_for('admin.login') }}">Admin Login</a>
+                    {% endif %}
+                {% elif demo_mode %}
+                    <span class="footer-note">Admin tools are available in local development.</span>
+                {% endif %}
+            </div>
+        </footer>
+    </div>
+</body>
+</html>

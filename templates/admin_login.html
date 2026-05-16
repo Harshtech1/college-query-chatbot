@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% set title = "Admin Login" %}
+{% block content %}
+<section class="auth-shell">
+    <div class="auth-card">
+        <p class="eyebrow">Protected workspace</p>
+        <h1>Admin Sign In</h1>
+        <p class="hero-text">Manage FAQs, upload source documents, and review chat activity.</p>
+
+        <form method="post" class="stack-form">
+            <label>
+                <span>Username</span>
+                <input type="text" name="username" placeholder="Enter admin username" required>
+            </label>
+            <label>
+                <span>Password</span>
+                <input type="password" name="password" placeholder="Enter password" required>
+            </label>
+            <button class="primary-button" type="submit">Login</button>
+        </form>
+    </div>
+</section>
+{% endblock %}
+
