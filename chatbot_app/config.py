@@ -5,9 +5,13 @@ import tempfile
 from pathlib import Path
 
 
+def _is_vercel_runtime() -> bool:
+    return any(os.getenv(name) for name in ("VERCEL", "VERCEL_ENV", "VERCEL_URL", "NOW_REGION"))
+
+
 class Config:
     BASE_DIR = Path(__file__).resolve().parent.parent
-    IS_VERCEL = bool(os.getenv("VERCEL"))
+    IS_VERCEL = _is_vercel_runtime()
     DEMO_MODE = os.getenv("DEMO_MODE", "1" if IS_VERCEL else "0").lower() not in {"0", "false", "no"}
     INSTANCE_DIR = (Path(tempfile.gettempdir()) / "college_chatbot") if IS_VERCEL else (BASE_DIR / "instance")
     UPLOAD_DIR = INSTANCE_DIR / "uploads"

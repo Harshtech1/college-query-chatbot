@@ -10,5 +10,6 @@ server*.log
 server*.out.log
 server*.err.log
 browser_upload_test.txt
+vercel-runtime*.log
 
 .vercel
